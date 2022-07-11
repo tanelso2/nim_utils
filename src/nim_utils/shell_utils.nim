@@ -1,4 +1,5 @@
 import
+  os,
   osproc,
   sequtils,
   strformat,
@@ -22,3 +23,12 @@ proc execOutput*(command: string): string =
     .split(" ")
     .filterIt(it != "")
     .execOutput
+
+proc runScriptFromUrl*(url: string) =
+  # TODO: Use nim's builtin library that does tmps
+  # since we're on nim 1.6 now
+  let f = execOutput "mktemp"
+  let script = execOutput fmt"curl -fsSL {url}"
+  writeFile(f, script)
+  discard execCmd fmt"chmod +x {f}"
+  discard execCmd fmt"sh -c {f}"
