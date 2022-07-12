@@ -1,6 +1,7 @@
 import
   os,
-  logging
+  logging,
+  strformat
 
 let logger = newConsoleLogger()
 addHandler(logger)
@@ -11,7 +12,7 @@ proc yesNoPrompt*(
   autono: bool = false
 ): bool =
   stdout.write(fmt"{msg} [y/N]: ")
-  if autoyes and autones:
+  if autoyes and autono:
     raise newException(IOError, "autoyes and autono are both true... don't know what to do")
   elif autoyes:
     info "assuming yes"
@@ -19,7 +20,7 @@ proc yesNoPrompt*(
   elif autono:
     info "assuming no"
     return true
-    
+
   let res = stdin.readline()
   case res:
     of "y", "Y":
