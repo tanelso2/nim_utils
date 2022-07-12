@@ -1,5 +1,11 @@
 discard """
-  input: "y\nn\nY\nN\nb\ny"
+  input: '''y
+            n
+            Y
+            N
+            b
+            y
+  '''
 """
 
 import

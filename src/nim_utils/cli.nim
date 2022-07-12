@@ -1,7 +1,8 @@
 import
   os,
   logging,
-  strformat
+  strformat,
+  strutils
 
 let logger = newConsoleLogger()
 addHandler(logger)
@@ -21,7 +22,7 @@ proc yesNoPrompt*(
     info "assuming no"
     return true
 
-  let res = stdin.readline()
+  let res = stdin.readline().strip
   case res:
     of "y", "Y":
       true
