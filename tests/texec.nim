@@ -3,14 +3,37 @@ discard """
 
 import
   strutils,
+  std/tempfiles,
   nim_utils/shell_utils
 
-let h = execOutput("echo Hello")
+let shouldFailCmd = "cat /does/not/exist"
+let shouldSucceedCmd = "echo Hello"
 
-assert h == "Hello\n"
+block execOutputTest:
+  let h = execOutput "echo Hello"
 
-try:
-  let h2 = execOutput("exit 3")
-  assert false, "Shouldn't reach here"
-except:
-  assert true
+  assert h == "Hello\n"
+
+  try:
+    discard execOutput shouldFailCmd
+    assert false, "Shouldn't reach here"
+  except:
+    assert true
+
+block tryExecTest:
+  assert tryExec shouldSucceedCmd
+  assert not tryExec(shouldFailCmd)
+
+block withShDirTest:
+  let dirName = "helloTest"
+
+  var currDir: string = execOutput "pwd"
+
+  assert not currDir.contains(dirName)
+
+  let tmpDir = createTempDir(dirName, "")
+
+  withShDir tmpDir:
+    currDir = execOutput "pwd" 
+    assert currDir.contains(dirName), "Should have changed dirs"
+
