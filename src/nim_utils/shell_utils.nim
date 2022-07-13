@@ -27,12 +27,9 @@ proc execOutput*(command: string): string =
 
 proc tryExec*(command: string): bool =
   try:
-    echo "Running command"
     discard execOutput command
-    echo "Command succeeded"
     true
   except:
-    echo "Command failed"
     false
 
 proc runScriptFromUrl*(url: string) =
