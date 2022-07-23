@@ -41,6 +41,8 @@ proc runScriptFromUrl*(url: string) =
   discard execCmd fmt"chmod +x {f}"
   discard execCmd fmt"sh -c {f}"
 
+proc exeExists*(name: string): bool = findExe(name) != ""
+
 template withShDir*(newDir: string, body: untyped) =
   let currDir = getCurrentDir()
   setCurrentDir newDir

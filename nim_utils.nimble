@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.5"
+version       = "0.1.6"
 author        = "Thomas Nelson"
 description   = "A collection of functions I've written in other projects and want to reuse."
 license       = "Unlicense"
