@@ -10,8 +10,12 @@ import
 
 const osReleaseFile = "/etc/os-release"
 
-proc getOSInfo(): Table[string,string] =
-  result = initTable[string,string]()
+var osInfo: TableRef[string, string]
+
+proc getOSInfo*(): TableRef[string,string] =
+  if osInfo != nil:
+    return osInfo
+  result = newTable[string,string]()
   if osReleaseFile.fileExists:
     for l in osReleaseFile.lines:
         let x = l.split("=")
@@ -19,6 +23,7 @@ proc getOSInfo(): Table[string,string] =
            let k = x[0]
            let v = x[1]
            result[k] = v
+    osInfo = result
 
 template id(): string =
   getOSInfo().getOrDefault("ID", "")
@@ -39,7 +44,7 @@ proc exeName(p: PackageManager): string = $p
 
 proc getPackageManager*(): Option[PackageManager] =
 
-  template tryReturn(x: PackageManager): typed =
+  template tryReturn(x: PackageManager) =
     if exeExists(x.exeName):
       return some(x)
 
@@ -86,6 +91,5 @@ proc updatePackageList*() =
   discard execCmd pm.updateCmd()
 
 when isMainModule:
-  let osInfo = getOSInfo()
   let pm = getPackageManager().get()
   echo pm.updateCmd()
