@@ -13,8 +13,7 @@ const osReleaseFile = "/etc/os-release"
 proc getOSInfo(): Table[string,string] =
   result = initTable[string,string]()
   if osReleaseFile.fileExists:
-    let osInfoStr = readFile(osReleaseFile)
-    for l in osInfoStr.split("\n"):
+    for l in osReleaseFile.lines:
         let x = l.split("=")
         if len(l) > 1:
            let k = x[0]
