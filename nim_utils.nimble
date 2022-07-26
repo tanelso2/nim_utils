@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.7"
+version       = "0.1.8"
 author        = "Thomas Nelson"
 description   = "A collection of functions I've written in other projects and want to reuse."
 license       = "Unlicense"
@@ -11,4 +11,4 @@ srcDir        = "src"
 requires "nim >= 1.6.6"
 
 task test, "Runs the test suite":
-  exec "nimble install && testament p 'tests/*.nim'"
+  exec "nimble install -y && testament p 'tests/*.nim'"

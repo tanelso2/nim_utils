@@ -32,6 +32,13 @@ proc tryExec*(command: string): bool =
   except:
     false
 
+proc execCmdOrThrow*(command: string) =
+  let exitCode = execCmd(command)
+  if exitCode != 0:
+    raise newException(IOError, fmt"command {command} had non-zero exit code: {exitCode}")
+
+proc execOrThrow*(command: string) = discard execOutput(command)
+
 proc runScriptFromUrl*(url: string) =
   # TODO: Use nim's builtin library that does tmps
   # since we're on nim 1.6 now
