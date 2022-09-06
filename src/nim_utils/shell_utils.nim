@@ -5,7 +5,8 @@ import
   strformat,
   strutils,
   streams,
-  std/tempfiles
+  std/tempfiles,
+  nim_utils/logline
 
 proc execOutput*(x: openArray[string]): string =
   let process = x[0]
@@ -40,13 +41,14 @@ proc execCmdOrThrow*(command: string) =
 proc execOrThrow*(command: string) = discard execOutput(command)
 
 proc runScriptFromUrl*(url: string) =
-  # TODO: Use nim's builtin library that does tmps
-  # since we're on nim 1.6 now
-  let f = execOutput "mktemp"
+  let 
+    (cfile,path) = createTempFile("","")
+    f = cfile
   let script = execOutput fmt"curl -fsSL {url}"
-  writeFile(f, script)
-  discard execCmd fmt"chmod +x {f}"
-  discard execCmd fmt"sh -c {f}"
+  f.write(script)
+  f.close()
+  execCmdOrThrow fmt"chmod +x {path}"
+  execCmdOrThrow fmt"sh -c {path}"
 
 proc exeExists*(name: string): bool = findExe(name) != ""
 
