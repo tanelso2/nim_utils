@@ -23,7 +23,7 @@ proc dirname*(path: string): string =
 
 proc backupPath(source: string): string = fmt"{source}.bak"
 
-proc makeBackup(source: string) =
+proc makeBackup*(source: string) =
   case source.fileType:
     of ftFile, ftSymlink:
       copyFile(source, source.backupPath)

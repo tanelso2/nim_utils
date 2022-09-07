@@ -41,7 +41,7 @@ proc execCmdOrThrow*(command: string) =
 proc execOrThrow*(command: string) = discard execOutput(command)
 
 proc runScriptFromUrl*(url: string) =
-  let 
+  let
     (cfile,path) = createTempFile("","")
     f = cfile
   let script = execOutput fmt"curl -fsSL {url}"
