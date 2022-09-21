@@ -5,13 +5,14 @@ import
 type Level* = logging.Level
 
 let logger = newConsoleLogger(fmtStr="[$time] ")
+addHandler(logger)
 
 proc levelName*(lvl: Level): string =
   LevelNames[lvl]
 
 template log*(lvl: Level, msg: string) =
   let pos = instantiationInfo()
-  logger.log(lvl, "$1:$2:$3: $4" % [pos.filename, $pos.line, lvl.levelName, msg])
+  logging.log(lvl, "$1:$2:$3: $4" % [pos.filename, $pos.line, lvl.levelName, msg])
 
 template logDebug*(msg: string) =
   log(lvlDebug, msg)
