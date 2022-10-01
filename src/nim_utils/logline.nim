@@ -4,8 +4,14 @@ import
 
 type Level* = logging.Level
 
+
 let logger = newConsoleLogger(fmtStr="[$time] ")
 addHandler(logger)
+
+if defined(release):
+  setLogFilter lvlInfo
+else:
+  setLogFilter lvlDebug
 
 proc levelName*(lvl: Level): string =
   LevelNames[lvl]
