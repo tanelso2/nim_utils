@@ -4,9 +4,6 @@ import
   strformat,
   strutils
 
-let logger = newConsoleLogger()
-addHandler(logger)
-
 proc yesNoPrompt*(
   msg: string,
   autoyes: bool = false,
