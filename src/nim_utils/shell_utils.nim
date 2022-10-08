@@ -55,5 +55,7 @@ proc exeExists*(name: string): bool = findExe(name) != ""
 template withShDir*(newDir: string, body: untyped) =
   let currDir = getCurrentDir()
   setCurrentDir newDir
-  body
-  setCurrentDir currDir
+  try:
+    body
+  finally:
+    setCurrentDir currDir
