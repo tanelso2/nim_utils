@@ -48,3 +48,14 @@ proc collectFilesInDir*(d: string): seq[string] =
   return collect(newSeq):
     for (_, path) in walkDir(d):
       path
+
+proc copyPath*(source, dest: string) =
+  case source.fileType:
+    of ftSymlink, ftFile:
+      copyFile(source, dest)
+    of ftDir:
+      copyDir(source, dest)
+    of ftDoesNotExist:
+      raise newException(IOError, fmt"{source} does not exist")
+
+
