@@ -35,21 +35,21 @@ proc newYString*(s: string): YNode =
 proc newYList*(elems: seq[string]): YNode =
     YNode(kind:ynList, listVal: elems.map(newYString))
 
-template expectYString*(body: untyped) =
+template expectYString*(n, body: untyped) =
     case n.kind
     of ynString:
         body
     else:
         raise newException(ValueError, "expected string YNode")
 
-template expectYList*(body: untyped) =
+template expectYList*(n, body: untyped) =
     case n.kind
     of ynList:
         body
     else:
         raise newException(ValueError, "expected list YNode")
 
-template expectYMap*(body: untyped) =
+template expectYMap*(n, body: untyped) =
     case n.kind
     of ynMap:
         body
@@ -57,27 +57,27 @@ template expectYMap*(body: untyped) =
         raise newException(ValueError, "expected map YNode")
 
 proc get*(n: YNode, k: string): YNode =
-    expectYMap:
+    expectYMap n:
         result = n.mapVal[k]
 
 proc elems*(n: YNode): seq[YNode] =
-    expectYList:
+    expectYList n:
         result = n.listVal
 
 proc str*(n: YNode): string =
-    expectYString:
+    expectYString n:
         result = n.strVal
 
 proc getStr*(n: YNode, k: string): string =
-    expectYMap:
+    expectYMap n:
         n.get(k).str()
 
 proc toInt*(n: YNode): int =
-    expectYString:
+    expectYString n:
         result = parseInt(n.strVal)
 
 proc toFloat*(n: YNode): float =
-    expectYString:
+    expectYString n:
         result = parseFloat(n.strVal)
 
 proc simplifyName(k: YamlNode): string =
@@ -172,7 +172,7 @@ proc ofYaml*[T](n: YNode, t: typedesc[T]): T =
     discard
 
 proc ofYaml*[T](n: YNode, t: typedesc[seq[T]]): seq[T] =
-    expectYList:
+    expectYList n:
         result = collect:
             for x in n.elems():
                 ofYaml(x, T)

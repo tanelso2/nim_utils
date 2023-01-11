@@ -28,7 +28,7 @@ type
     mounts*: seq[Mount]
 
 proc ofYaml(n: YNode, t: typedesc[MountKind]): MountKind =
-    expectYString:
+    expectYString n:
         case n.strVal
         of $mkTmpfs:
             mkTmpfs
@@ -39,7 +39,7 @@ proc ofYaml(n: YNode, t: typedesc[MountKind]): MountKind =
 
 
 proc ofYaml(n: YNode, t: typedesc[Mount]): Mount =
-    expectYMap:
+    expectYMap n:
         let kind = ofYaml(n.get("kind"), MountKind)
         let mountPoint = n.get("mountPoint").str()
         let name = n.getStr("name")
@@ -60,7 +60,7 @@ proc ofYaml(n: YNode, t: typedesc[Mount]): Mount =
                            name: name)
 
 proc ofYaml(n: YNode, t: typedesc[Con]): Con =
-    expectYMap:
+    expectYMap n:
         let name = n.getStr("name")
         let mounts: seq[Mount] = ofYaml(n.get("mounts"), seq[Mount])
         return Con(name: name, mounts: mounts)
