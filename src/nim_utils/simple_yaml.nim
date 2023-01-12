@@ -168,9 +168,6 @@ proc toYaml*[T](l: seq[T]): YNode =
             toYaml(x)
     return elems.newYList()
 
-proc ofYaml*[T](n: YNode, t: typedesc[T]): T =
-    discard
-
 proc ofYaml*[T](n: YNode, t: typedesc[seq[T]]): seq[T] =
     expectYList n:
         result = collect:
@@ -201,3 +198,9 @@ proc `==`*(a: YNode, b: YNode): bool =
             let ma = a.mapVal
             let mb = b.mapVal
             return ma == mb
+
+proc ofYamlStr*[T](s: string, t:typedesc[T]): T =
+    s.loadNode().ofYaml(t)
+
+proc toYamlStr*[T](x: T): string =
+    x.toYaml().toString()

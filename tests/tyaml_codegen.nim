@@ -63,8 +63,15 @@ expandMacros:
 import
     tables
 
-proc collectObjectFieldNames(o: NimNode): seq[string] =
-    discard
+echo string
+echo typeof string
+
+dumpTree:
+    typeof typedesc[string]
+    typeof string
+
+let s = newYString("hello").ofYaml(string)
+echo s
 
 let simpleStr = """
 a: hello
@@ -85,17 +92,43 @@ type
         s: string
         f: float
 
-deriveYaml Example
+expandMacros:
+    deriveYaml Example
 
 let example = """
 i: 3
 s: hey
 f: 0.2
 """
-let e = example.loadNode().ofYaml(Example)
+let e = example.ofYamlStr(Example)
 check e.i == 3
 check e.s == "hey"
 check e.f == 0.2
+
+type
+    Example2 = object of Example
+        i2: int
+
+deriveYaml Example2
+
+# echo (typeof Example2.i2)
+# echo (typeof Example2.i)
+
+# expandMacros:
+#     deriveYaml Example2
+
+let example2 = """
+i: 3
+i2: 4
+s: hey
+f: 0.2
+"""
+let e2: Example2 = example2.loadNode().ofYaml(Example2)
+check e2.i == 3
+check e2.s == "hey"
+check e2.f == 0.2
+check e2.i2 == 4
+
 
 type
     Base = object of RootObj
@@ -103,6 +136,9 @@ type
     RBase = ref object of Base
     Deriv = object of Base
         b: int
+    Complex = object of RootObj
+        c: string
+        d: Base
     VKind = enum
         vk1, vk2
     Variant = object of RootObj
@@ -117,4 +153,50 @@ dumpImpl Base
 dumpImpl RBase
 dumpImpl Deriv
 dumpImpl Variant
-    
+dumpImpl Complex
+
+let cs = """
+c: def
+d:
+  a: abc
+"""
+
+deriveYamls:
+    Base
+    Complex
+
+let c: Complex = cs.loadNode().ofYaml(Complex) 
+
+check c.c == "def"
+check c.d.a == "abc"
+checkRoundTrip c
+
+type 
+    MyEnum = enum
+        my1, my2, my3
+
+dumpTree:
+    proc toYaml(x: MyEnum): YNode =
+        newYString($x)
+
+dumpTree:
+    proc ofYaml(n: YNode, t: typedesc[MyEnum]): MyEnum =
+        expectYString n:
+            case n.strVal
+            of $my1:
+                my1
+            of $my2:
+                my2
+            of $my3:
+                my3
+            else:
+                let s = "unknown kind for MyEnum: " & n.strVal
+                raise newException(ValueError, s)
+
+dumpTree:
+                let s = "unknown kind for MyEnum: " & n.strVal
+                raise newException(ValueError, s)
+
+# dumpImpl VKind
+expandMacros:
+    deriveYaml VKind
