@@ -1,7 +1,9 @@
 import
     macros,
     sequtils,
+    nim_utils/reflection,
     nim_utils/simple_yaml,
+    nim_utils/yaml_codegen,
     test_utils/yaml_testing,
     unittest
 
@@ -10,12 +12,6 @@ type
         a: string
     Simple2 = object of RootObj
         a: string
-
-dumpTree:
-    proc ofYaml(n: YNode, t: typedesc[Simple]): Simple =
-        expectYMap n:
-            result = Simple(a: ofYaml(n.get("a"),
-                                      typeof Simple.a))
 
 proc ofYaml(n: YNode, t: typedesc[Simple]): Simple =
     expectYMap n:
@@ -39,114 +35,30 @@ proc toYaml(x: Simple): YNode =
 macro dumpTypeImpl(x: typed) =
     echo newLit(x.getTypeImpl.treeRepr)
 
-dumpTypeImpl Simple
+# dumpTypeImpl Simple
 
 macro dumpImpl(x: typed) =
     echo newLit(x.getImpl.treeRepr)
 
 dumpImpl Simple
 
-proc getValueForField(fieldName: string, obj, t: NimNode): NimNode =
-    newCall("ofYaml",
-        newCall(newDotExpr(obj, ident("get")), 
-                newStrLitNode(fieldName)),
-        nnkCommand.newTree(
-            ident("typeof"),
-            newDotExpr(t, ident(fieldName))
-        )
-    )
+macro dumpTypeKind(x: typed) =
+    echo newLit($x.typeKind)
 
-proc mkObjTypeConsFieldParam(name: string, obj, t: NimNode): NimNode =
-    newColonExpr(
-        ident(name),
-        getValueForField(name, obj, t)
-    )
+# dumpTypeKind Simple
 
-proc mkOfYamlForObjType(t: NimNode): NimNode =
-    let retType = t
-    let nodeParam = newIdentDefs(ident("n"), ident("YNode"))
-    let typeParam = newIdentDefs(ident("t"), 
-                                 nnkBracketExpr.newTree(
-                                    ident "typedesc",
-                                    retType
-                                 ))
-    let n = ident("n")
-    let fields = @["a"]
-    newProc(
-        name=ident("ofYaml"),
-        params=[retType, nodeParam, typeParam],
-        body=nnkStmtList.newTree(
-            nnkCommand.newTree(
-                ident("expectYMap"),
-                n,
-                newStmtList(
-                    nnkAsgn.newTree(
-                        ident("result"),
-                        nnkObjConstr.newTree(
-                            concat(
-                              @[retType],
-                              fields.mapIt(mkObjTypeConsFieldParam(it, n, retType))
-                            )
-                        )
-                    )
+macro dumpResolvedTypeKind(x: typed) =
+    echo newLit($x.getType().typeKind)
 
-                )
-            )
-        )
-    )
+# dumpResolvedTypeKind Simple
 
-macro deriveYaml*(v: typed) =
-    if v.kind == nnkSym and v.symKind == nskType:
-        # StmtList
-        #   ProcDef 
-        #     Ident "ofYaml"
-        #     Empty
-        #     Empty
-        #     FormalParams
-        #       Ident "Simple"
-        #       IdentDefs
-        #         Ident "n"
-        #         Ident "YNode"
-        #         Empty
-        #       IdentDefs
-        #         Ident "t"
-        #         BracketExpr
-        #           Ident "typedesc"
-        #           Ident "Simple"
-        #         Empty
-        #     Empty
-        #     Empty
-        #     StmtList
-        #       Command
-        #         Ident "expectYMap"
-        #         Ident "n"
-        #         StmtList
-        #           LetSection
-        #             IdentDefs
-        #               Ident "a"
-        #               Empty
-        #               Call
-        #                 DotExpr
-        #                   Ident "n"
-        #                   Ident "getStr"
-        #                 StrLit "a"
-        #           Asgn
-        #             Ident "result"
-        #             ObjConstr
-        #               Ident "Simple"
-        #               ExprColonExpr
-        #                 Ident "a"
-        #                 Ident "a"
-        let ofYamlDef = mkOfYamlForObjType v
-        let toYamlDef = nnkProcDef.newTree()
-        result = newStmtList(
-            ofYamlDef #, toYamlDef
-        )
-    else:
-        error("deriveYaml only works on types", v)
+macro dumpTypeInst(x: typed) = 
+    echo newLit(x.getTypeInst().treeRepr)
+
+# dumpTypeInst Simple
 
 expandMacros:
-    deriveYaml(Simple2)
+    deriveYaml Simple2
 
 import
     tables
@@ -164,5 +76,45 @@ checkRoundTrip a
 check a.a == "hello"
 
 var a2 = simpleStr.loadNode().ofYaml(Simple2)
-# checkRoundTrip a2
+checkRoundTrip a2
 check a2.a == "hello"
+
+type
+    Example = object of RootObj
+        i: int
+        s: string
+        f: float
+
+deriveYaml Example
+
+let example = """
+i: 3
+s: hey
+f: 0.2
+"""
+let e = example.loadNode().ofYaml(Example)
+check e.i == 3
+check e.s == "hey"
+check e.f == 0.2
+
+type
+    Base = object of RootObj
+        a: string
+    RBase = ref object of Base
+    Deriv = object of Base
+        b: int
+    VKind = enum
+        vk1, vk2
+    Variant = object of RootObj
+        c: string
+        case kind: VKind
+        of vk1:
+            v1: string
+        of vk2:
+            v2: float
+
+dumpImpl Base
+dumpImpl RBase
+dumpImpl Deriv
+dumpImpl Variant
+    
