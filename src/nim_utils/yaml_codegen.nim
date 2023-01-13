@@ -1,23 +1,30 @@
 import
   macros,
   sequtils,
+  sugar,
+  ./simple_yaml,
   ./reflection
 
-proc getValueForField(f: Field, obj, t: NimNode): NimNode =
+proc mkYNodeGetCall(n: NimNode, k: string): NimNode =
+  newCall(newDotExpr(n, ident("get")),
+          newStrLitNode(k))
+
+proc getValueForField(f: Field, obj: NimNode): NimNode =
     newCall("ofYaml",
-        newCall(newDotExpr(obj, ident("get")), 
-                newStrLitNode(f.getName())),
+        mkYNodeGetCall(obj, f.getName()),
         nnkBracketExpr.newTree(
           ident("typedesc"),
           f.getT()
         )
     )
 
-proc mkObjTypeConsFieldParam(f: Field, obj, t: NimNode): NimNode =
+proc mkObjTypeConsFieldParam(f: Field, obj: NimNode): NimNode =
   newColonExpr(
     ident(f.name),
-    getValueForField(f, obj, t)
+    getValueForField(f, obj)
   )
+
+
 
 proc mkOfYamlForObjType(t: NimNode, fields: seq[Field]): NimNode =
     let retType = t
@@ -41,7 +48,7 @@ proc mkOfYamlForObjType(t: NimNode, fields: seq[Field]): NimNode =
                         nnkObjConstr.newTree(
                             concat(
                               @[retType],
-                              fields.mapIt(mkObjTypeConsFieldParam(it, n, retType))
+                              fields.mapIt(mkObjTypeConsFieldParam(it, n))
                             )
                         )
                     )
@@ -79,7 +86,7 @@ proc mkToYamlForObjType(t: NimNode, fields: seq[Field]): NimNode =
         )
     )
 
-proc mkToYamlForEnumType(t: NimNode, vals: seq[string]): NimNode =
+proc mkToYamlForEnumType(t: NimNode, vals: seq[EnumVal]): NimNode =
   let retType = ident("YNode")
   let obj = ident("x")
   newProc(
@@ -96,18 +103,18 @@ proc mkToYamlForEnumType(t: NimNode, vals: seq[string]): NimNode =
       )
   )
 
-proc mkEnumOfBranch(val: string): NimNode =
+proc mkEnumOfBranch(val: EnumVal): NimNode =
   nnkOfBranch.newTree(
     nnkPrefix.newTree(
       ident("$"),
-      ident(val)
+      ident(val.name)
     ),
     newStmtList(
-      ident(val)
+      ident(val.name)
     )
   )
 
-proc mkOfYamlForEnumType(t: NimNode, vals: seq[string]): NimNode =
+proc mkOfYamlForEnumType(t: NimNode, vals: seq[EnumVal]): NimNode =
   let retType = t
   let n = ident("n")
   let nodeParam = newIdentDefs(n, ident("YNode"))
@@ -128,13 +135,7 @@ proc mkOfYamlForEnumType(t: NimNode, vals: seq[string]): NimNode =
               #TODO: Add type name here
               newStrLitNode("unknown kind: "),
               nnkDotExpr.newTree(
-                n, ident("strVal")
-              )
-            )
-          )
-        )
-      )
-    )
+                n, ident("strVal")))))))
   newProc(
       name=ident("ofYaml"),
       params=[retType, nodeParam, typeParam],
@@ -150,12 +151,85 @@ proc mkOfYamlForEnumType(t: NimNode, vals: seq[string]): NimNode =
                   )
                 ],
                 vals.mapIt(mkEnumOfBranch(it)),
-                @[elseBranch]
-              )
-            )
+                @[elseBranch])
+            )))))
+
+proc mkOfYamlForVariantType(t: NimNode, 
+                            common: seq[Field], 
+                            discrim: Field, 
+                            variants: seq[NimVariant]): NimNode =
+  let retType = t
+  let n = ident("n")
+  let kind = ident(discrim.name)
+
+  proc mkVariantOfBranch(v: NimVariant): NimNode =
+    let neededFields = common & v.fields
+    nnkOfBranch.newTree(
+      ident(v.name),
+      newStmtList(
+        nnkAsgn.newTree(
+          ident("result"),
+          nnkObjConstr.newTree(
+            concat(
+              @[t,
+                newColonExpr(kind, kind)],
+              neededFields.mapIt(mkObjTypeConsFieldParam(it, n)))))))
+
+  let nodeParam = newIdentDefs(n, ident("YNode"))
+  let typedescType = nnkBracketExpr.newTree(
+    ident "typedesc", retType
+  )
+  let typeParam = newIdentDefs(ident("t"), typedescType)
+  let ofBranches = collect:
+    for v in variants:
+      mkVariantOfBranch(v)
+  newProc(
+    name=ident("ofYaml"),
+    params=[retType, nodeParam, typeParam],
+    body=newStmtList(
+      nnkCommand.newTree(
+        ident("expectYMap"),
+        n,
+        newStmtList(
+          newLetStmt(kind,
+                     getValueForField(discrim, n)),
+          nnkCaseStmt.newTree(
+            concat(@[kind], ofBranches))))))
+
+proc mkToYamlForVariantType(t: NimNode,
+                            common: seq[Field], 
+                            discrim: Field, 
+                            variants: seq[NimVariant]): NimNode =
+  let retType = ident("YNode")
+  let obj = ident("x")
+  proc mkVariantOfBranch(v: NimVariant): NimNode =
+    let neededFields = @[discrim] & common & v.fields
+    nnkOfBranch.newTree(
+      ident(v.name),
+      nnkAsgn.newTree(
+        ident("result"),
+        newCall(
+          ident("newYMap"),
+          nnkTableConstr.newTree(
+            neededFields.mapIt(mkObjTypeTableField(it, obj))
           )
         )
-      ))
+      )
+    )
+  let ofBranches = variants.map(mkVariantOfBranch)
+  newProc(
+    name=ident("toYaml"),
+    params=[retType, newIdentDefs(obj, t)],
+    body=newStmtList(
+      nnkCaseStmt.newTree(
+        concat(
+          @[newDotExpr(obj, ident(discrim.name))],
+          ofBranches
+        )
+      )
+    )
+  )
+
 
 proc mkToYamlForType(t: NimNode): NimNode =
   let fields = collectObjFieldsForType(t.getImpl())
@@ -163,7 +237,7 @@ proc mkToYamlForType(t: NimNode): NimNode =
   of otObj:
     return mkToYamlForObjType(t, fields.fields)
   of otVariant:
-    error("NOIMPL for variants", t)
+    return mkToYamlForVariantType(t, fields.common, fields.discrim, fields.variants)
   of otEnum:
     return mkToYamlForEnumType(t, fields.vals)
   of otEmpty:
@@ -175,7 +249,7 @@ proc mkOfYamlForType(t: NimNode): NimNode =
   of otObj:
     return mkOfYamlForObjType(t, fields.fields)
   of otVariant:
-    error("NOIMPL for variants", t)
+    return mkOfYamlForVariantType(t, fields.common, fields.discrim, fields.variants)
   of otEnum:
     return mkOfYamlForEnumType(t, fields.vals)
   of otEmpty:

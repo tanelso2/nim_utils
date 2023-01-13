@@ -175,28 +175,142 @@ type
     MyEnum = enum
         my1, my2, my3
 
-dumpTree:
-    proc toYaml(x: MyEnum): YNode =
-        newYString($x)
-
-dumpTree:
-    proc ofYaml(n: YNode, t: typedesc[MyEnum]): MyEnum =
-        expectYString n:
-            case n.strVal
-            of $my1:
-                my1
-            of $my2:
-                my2
-            of $my3:
-                my3
-            else:
-                let s = "unknown kind for MyEnum: " & n.strVal
-                raise newException(ValueError, s)
-
-dumpTree:
-                let s = "unknown kind for MyEnum: " & n.strVal
-                raise newException(ValueError, s)
+deriveYaml MyEnum
 
 # dumpImpl VKind
 expandMacros:
     deriveYaml VKind
+
+dumpImpl Variant
+
+type
+    MyVariant = object
+        c: string
+        case kind: MyEnum
+        of my1:
+            i: int
+        of my2:
+            discard
+        of my3:
+            s: string
+
+# proc ofYaml(n: YNode, t: typedesc[MyVariant]): MyVariant =
+#     expectYMap n:
+#         let kind = ofYaml(n.get("kind"), MyEnum)
+#         case kind
+#         of my1:
+#             result = MyVariant(kind: my1,
+#                                 c: ofYaml(n.get("c"), string),
+#                                 i: ofYaml(n.get("i"), int)
+#             )
+#         of my2:
+#             result = MyVariant(kind: my2,
+#                                 c: ofYaml(n.get("c", string)))
+#         of my3:
+#             result = MyVariant(kind: my3,
+#                                 c: ofYaml(n.get("c", string)),
+#                                 s: ofYaml(n.get("s", string))
+#             )
+
+# dumpTree:
+#     proc toYaml(x: MyVariant): YNode =
+#         case x.kind
+#         of my1:
+#             result = newYMap({
+#                 "kind": toYaml(x.kind),
+#                 "c": toYaml(x.c),
+#                 "i": toYaml(x.i)
+#             })
+#         of my2:
+#             result = newYMap({
+#                 "kind": toYaml(x.kind),
+#                 "c": toYaml(x.c),
+#             })
+#         of my3:
+#             result = newYMap({
+#                 "kind": toYaml(x.kind),
+#                 "c": toYaml(x.c),
+#                 "s": toYaml(x.s)
+#             })
+
+expandMacros:
+    deriveYaml MyVariant
+
+# Testing the types from tyaml_extension
+
+dumpTree:
+    type 
+        MountKind* = enum
+            mkTmpfs = "tmpfs"
+            mkS3fs = "s3fs"
+        Mount* = object
+            mountPoint: string
+            name: string
+            case kind: MountKind
+            of mkTmpfs:
+            discard
+            of mkS3fs:
+            key: string
+            secret: string
+            bucket: string
+        Con* = object of RootObj
+            name*: string
+            mounts*: seq[Mount]
+
+type 
+    MountKind* = enum
+        mkTmpfs = "tmpfs"
+        mkS3fs = "s3fs"
+    Mount* = object
+        mountPoint: string
+        name: string
+        case kind: MountKind
+        of mkTmpfs:
+            discard
+        of mkS3fs:
+            key: string
+            secret: string
+            bucket: string
+    Con* = object of RootObj
+        name*: string
+        mounts*: seq[Mount]
+
+macro dumpFields(x: typed) =
+  echo newLit($collectObjFieldsForType(x.getImpl()))
+
+dumpFields Mount
+
+expandMacros:
+    deriveYamls:
+        MountKind
+        Mount
+        Con
+
+
+let noMounts = Con(name:"example", mounts: @[])
+
+let m = Mount(mountPoint: "/etc/tmpfs", kind: mkTmpfs, name: "tmp")
+
+var c2 = Con(name: "c2", mounts: @[m])
+
+echod m.toYaml().toString()
+
+echod noMounts.toYaml().toString()
+echod c2.toYaml().toString()
+
+let cy: YNode = c2.toYaml()
+
+let m2: Mount = ofYaml(m.toYaml(), Mount)
+check m2.name == m.name
+check m2.mountPoint == m.mountPoint
+check m2.kind == m.kind
+checkRoundTrip m2
+
+
+let c3: Con = ofYaml(cy, Con)
+check c3.name == c2.name
+check len(c3.mounts) == 1
+check c3.mounts[0].name == m2.name
+checkRoundTrip c3
+
+checkRoundTrip cy

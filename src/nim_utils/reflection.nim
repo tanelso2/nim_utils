@@ -13,6 +13,9 @@ type
   NimVariant* = object of RootObj
     name*: string
     fields*: seq[Field]
+  EnumVal* = object of RootObj
+    name*: string
+    val*: NimNode
   ObjFields* = object of RootObj
     case kind*: ObjType
     of otEmpty:
@@ -21,9 +24,24 @@ type
       fields*: seq[Field]
     of otVariant:
       common*: seq[Field]
+      discriminator*: Field
       variants*: seq[NimVariant]
     of otEnum:
-      vals*: seq[string]
+      vals*: seq[EnumVal]
+
+proc discrim*(o: ObjFields): Field = o.discriminator
+
+proc newEnumFields(vals: seq[EnumVal]): ObjFields =
+  ObjFields(kind: otEnum, vals: vals)
+
+proc newVariantFields(common: seq[Field], discrim: Field, variants: seq[NimVariant]): ObjFields =
+  ObjFields(kind: otVariant,
+            common: common,
+            discriminator: discrim,
+            variants: variants)
+
+proc newObjFields(fields: seq[Field]): ObjFields =
+  ObjFields(kind: otObj, fields: fields)
 
 proc empty(): ObjFields =
   ObjFields(kind: otEmpty)
@@ -42,12 +60,12 @@ proc combine(a,b: ObjFields): ObjFields =
   of otObj:
     case b.kind
     of otObj:
-      result = ObjFields(kind: otObj, 
-                        fields: concat(a.fields, b.fields))
+      result = newObjFields(concat(a.fields, b.fields))
     of otVariant:
-      result = ObjFields(kind: otVariant,
-                        common: concat(a.fields, b.common),
-                        variants: b.variants)
+      result = newVariantFields(common=concat(a.fields, b.common),
+                                discrim=b.discrim,
+                                variants=b.variants
+                                )
     of otEnum:
       noimpl()
     of otEmpty:
@@ -55,11 +73,18 @@ proc combine(a,b: ObjFields): ObjFields =
   of otVariant:
     case b.kind
     of otObj:
-      result = ObjFields(kind: otVariant,
-                         common: concat(b.fields, a.common),
-                         variants: a.variants)
+      result = newVariantFields(common=concat(a.common, b.fields),
+                                discrim=a.discrim,
+                                variants=a.variants
+      )
     of otVariant:
-      noimpl()
+      if a.discriminator != b.discriminator:
+        raise newException(ValueError, "Cannot combine variants of different discriminators")
+      result = newVariantFields(
+        common=concat(a.common, b.common),
+        discrim=a.discrim,
+        variants=concat(a.variants, b.variants)
+      )
     of otEnum:
       noimpl()
     of otEmpty:
@@ -71,8 +96,7 @@ proc combine(a,b: ObjFields): ObjFields =
     of otVariant:
       noimpl()
     of otEnum:
-      result = ObjFields(kind: otEnum,
-                         vals: concat(a.vals,b.vals))
+      result = newEnumFields(concat(a.vals, b.vals))
     of otEmpty:
       result = a
   of otEmpty:
@@ -81,12 +105,14 @@ proc combine(a,b: ObjFields): ObjFields =
 proc combineAll(x: seq[ObjFields]): ObjFields =
   foldl(x, combine(a,b))
 
-proc collectEnumVals(x: NimNode): seq[string] =
+proc collectEnumVals(x: NimNode): seq[EnumVal] =
   case x.kind
   of nnkSym:
-    result = @[x.strVal]
+    result = @[EnumVal(name: x.strVal, val: newStrLitNode(x.strVal))]
   of nnkEmpty:
     result = @[]
+  of nnkEnumFieldDef:
+    result = @[EnumVal(name: x[0].strVal, val: x[1])]
   else:
     error("Cannot collect enum vals from node ", x)
 
@@ -97,6 +123,56 @@ proc collectEnumFields(x: NimNode): ObjFields =
       collectEnumVals c
   let vals = concat(vs)
   return ObjFields(kind: otEnum, vals: vals)
+
+proc getNameWithoutStar(x: NimNode): string =
+  case x.kind
+  of nnkIdent:
+    return x.strVal
+  of nnkPostfix:
+    let op = x[0].strVal
+    if op == "*":
+      return x[1].strVal
+    else:
+      raise newException(ValueError, fmt"do no know how to handle postfix op {op}")
+  else:
+    raise newException(ValueError, fmt"do not know how to get name of {x.kind}")
+
+proc fieldOfIdentDef(x: NimNode): Field =
+  expectKind(x, nnkIdentDefs)
+  echo x[0]
+  Field(name: getNameWithoutStar(x[0]),
+        t: x[1])
+
+# Forward declaration for mutual recursion
+proc collectObjFields(x: NimNode): ObjFields
+
+proc collectVariantFields(x: NimNode): ObjFields =
+  expectKind(x, nnkRecCase)
+  result = ObjFields(kind: otVariant, common: @[], variants: @[])
+  for c in x.children:
+    case c.kind
+    of nnkIdentDefs:
+      let discrim = fieldOfIdentDef(c)
+      result.discriminator = discrim
+    of nnkOfBranch:
+      let name = c[0].strVal
+      let branchFields = collectObjFields(c[1])
+      case branchFields.kind
+      of otObj:
+        let newVariant = NimVariant(name: name, fields: branchFields.fields)
+        result.variants.add(newVariant)
+      of otEmpty:
+        let newVariant = NimVariant(name: name, fields: @[])
+        result.variants.add(newVariant)
+      else:
+        error("branch of variant parsed as an enum type or variant type", x)
+    of nnkEmpty:
+      discard
+    else:
+      error("Don't know how to collect variant fields from ", x)
+
+
+
 
 proc collectObjFields(x: NimNode): ObjFields =
   proc foldChildren(x: NimNode): ObjFields =
@@ -110,13 +186,14 @@ proc collectObjFields(x: NimNode): ObjFields =
     return empty()
   of nnkEmpty:
     return empty()
+  of nnkNilLit:
+    return empty()
   of nnkSym:
     return empty()
   of nnkIdentDefs:
     return ObjFields(
       kind: otObj,
-      fields: @[Field(name: x[0].strVal, 
-                      t: x[1])]
+      fields: @[fieldOfIdentDef(x)]
     )
   of nnkOfInherit:
     let parentClassSym = x[0]
@@ -136,50 +213,10 @@ proc collectObjFields(x: NimNode): ObjFields =
   of nnkEnumTy:
     return collectEnumFields(x)
   of nnkRecCase:
-    raise newException(ValueError, "No implementation for variants yet")
+    return collectVariantFields(x)
   else:
-    raise newException(ValueError, "boo")
-
-proc collectFields(x: NimNode): seq[Field] =
-  proc recurseChildren(x: NimNode): seq[Field] =
-    let r = collect:
-      for c in x.children:
-        collectFields(c)
-    return concat(r)
-
-  case x.kind
-  of nnkIdent:
-    return @[]
-  of nnkIdentDefs:
-    return @[Field(name: x[0].strVal, 
-                   t: x[1])]
-  of nnkEmpty:
-    return @[]
-  of nnkSym:
-    return @[]
-  of nnkOfInherit:
-    let parentClassSym = x[0]
-    if parentClassSym.strVal == "RootObj":
-      return @[]
-    else:
-      # echo "GOT INHERITANCE"
-      return collectFields(parentClassSym.getImpl())
-  of nnkRecList:
-    return recurseChildren(x)
-  of nnkObjectTy:
-    return recurseChildren(x)
-  of nnkTypeDef:
-    return recurseChildren(x)
-  of nnkRefTy:
-    return recurseChildren(x)
-  of nnkRecCase:
-    raise newException(ValueError, "No implementation for variants yet")
-  else:
-    error("Unknown NimNodeKind passed to collectFields", x)
-
-proc collectFieldsForType*(t: NimNode): seq[Field] =
-  expectKind(t, nnkTypeDef)
-  collectFields(t)
+    echo x.kind
+    error("Cannot collect object fields from a NimNode of this kind", x)
 
 proc collectObjFieldsForType*(t: NimNode): ObjFields =
   expectKind(t, nnkTypeDef)

@@ -29,9 +29,9 @@ dumpImpl Deriv
 dumpImpl Variant
 
 macro dumpFields(x: typed) =
-  echo newLit($collectFieldsForType(x.getImpl()))
+  echo newLit($collectObjFieldsForType(x.getImpl()))
 
 dumpFields Base
 dumpFields RBase
 dumpFields Deriv
-# dumpFields Variant
+dumpFields Variant

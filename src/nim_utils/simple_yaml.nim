@@ -150,6 +150,10 @@ proc toString*(n: YNode, indentLevel=0): string =
                 .mapIt("- $1" % it)
                 .join(newline())
 
+proc ofYaml*[T](n: YNode, t: typedesc[T]): T =
+    raise newException(ValueError, "No implementation of ofYaml for type")
+    
+
 proc toYaml*(s: string): YNode =
     newYString(s)
 
