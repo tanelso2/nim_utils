@@ -24,8 +24,7 @@ type
     pulse: bool
     breathing: bool
 
-expandMacros:
-  deriveYaml MyType
+deriveYaml MyType
 
 sample = """
 pulse: true
