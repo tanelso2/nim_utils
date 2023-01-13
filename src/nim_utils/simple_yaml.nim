@@ -8,6 +8,11 @@ import
     yaml,
     yaml/dom
 
+import
+    ./yaml_codegen
+
+export yaml_codegen
+
 type
   YNodeKind* = enum
     ynString, ynList, ynMap
@@ -150,6 +155,9 @@ proc toString*(n: YNode, indentLevel=0): string =
                 .mapIt("- $1" % it)
                 .join(newline())
 
+# HACKY AND I DON'T LIKE IT
+# Added because the compiler was unable to find ofYaml[T]
+# when evaluating ofYaml[seq[T]] 
 proc ofYaml*[T](n: YNode, t: typedesc[T]): T =
     raise newException(ValueError, "No implementation of ofYaml for type")
     
@@ -186,6 +194,10 @@ proc ofYaml*(n: YNode, t: typedesc[float]): float =
 
 proc ofYaml*(n: YNode, t: typedesc[string]): string =
     n.str()
+
+proc ofYaml*(n: YNode, t: typedesc[bool]): bool =
+    echo fmt"The node looks like '{n.str()}'"
+    parseBool(n.str())
 
 proc `==`*(a: YNode, b: YNode): bool =
     if a.kind != b.kind:

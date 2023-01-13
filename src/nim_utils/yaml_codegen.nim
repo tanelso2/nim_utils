@@ -18,6 +18,12 @@ proc getValueForField(f: Field, obj: NimNode): NimNode =
         )
     )
 
+proc pubIdent(s: string): NimNode =
+  nnkPostfix.newTree(
+    ident("*"),
+    ident(s)
+  )
+
 proc mkObjTypeConsFieldParam(f: Field, obj: NimNode): NimNode =
   newColonExpr(
     ident(f.name),
@@ -36,7 +42,7 @@ proc mkOfYamlForObjType(t: NimNode, fields: seq[Field]): NimNode =
                                  ))
     let n = ident("n")
     newProc(
-        name=ident("ofYaml"),
+        name=pubIdent("ofYaml"),
         params=[retType, nodeParam, typeParam],
         body=nnkStmtList.newTree(
             nnkCommand.newTree(
@@ -74,7 +80,7 @@ proc mkToYamlForObjType(t: NimNode, fields: seq[Field]): NimNode =
     let retType = ident("YNode")
     let obj = ident("x")
     newProc(
-        name=ident("toYaml"),
+        name=pubIdent("toYaml"),
         params=[retType, newIdentDefs(obj, t)],
         body=nnkStmtList.newTree(
             newCall(
@@ -90,7 +96,7 @@ proc mkToYamlForEnumType(t: NimNode, vals: seq[EnumVal]): NimNode =
   let retType = ident("YNode")
   let obj = ident("x")
   newProc(
-      name=ident("toYaml"),
+      name=pubIdent("toYaml"),
       params=[retType, newIdentDefs(obj, t)],
       body=nnkStmtList.newTree(
         newCall(
@@ -137,7 +143,7 @@ proc mkOfYamlForEnumType(t: NimNode, vals: seq[EnumVal]): NimNode =
               nnkDotExpr.newTree(
                 n, ident("strVal")))))))
   newProc(
-      name=ident("ofYaml"),
+      name=pubIdent("ofYaml"),
       params=[retType, nodeParam, typeParam],
       body=nnkStmtList.newTree(
         nnkCommand.newTree(
@@ -184,7 +190,7 @@ proc mkOfYamlForVariantType(t: NimNode,
     for v in variants:
       mkVariantOfBranch(v)
   newProc(
-    name=ident("ofYaml"),
+    name=pubIdent("ofYaml"),
     params=[retType, nodeParam, typeParam],
     body=newStmtList(
       nnkCommand.newTree(
@@ -218,7 +224,7 @@ proc mkToYamlForVariantType(t: NimNode,
     )
   let ofBranches = variants.map(mkVariantOfBranch)
   newProc(
-    name=ident("toYaml"),
+    name=pubIdent("toYaml"),
     params=[retType, newIdentDefs(obj, t)],
     body=newStmtList(
       nnkCaseStmt.newTree(

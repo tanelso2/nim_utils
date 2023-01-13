@@ -13,3 +13,6 @@ requires "yaml"
 
 task test, "Runs the test suite":
   exec "nimble install -y && testament p 'tests/*.nim'"
+
+task testYaml, "Runs all the yaml tests":
+  exec "testament p 'tests/tyaml*.nim'"

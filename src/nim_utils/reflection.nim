@@ -139,7 +139,7 @@ proc getNameWithoutStar(x: NimNode): string =
 
 proc fieldOfIdentDef(x: NimNode): Field =
   expectKind(x, nnkIdentDefs)
-  echo x[0]
+  # echo x[0]
   Field(name: getNameWithoutStar(x[0]),
         t: x[1])
 
@@ -215,8 +215,8 @@ proc collectObjFields(x: NimNode): ObjFields =
   of nnkRecCase:
     return collectVariantFields(x)
   else:
-    echo x.kind
-    error("Cannot collect object fields from a NimNode of this kind", x)
+    # echo x.kind
+    error(fmt"Cannot collect object fields from a NimNode of this kind {x.kind}", x)
 
 proc collectObjFieldsForType*(t: NimNode): ObjFields =
   expectKind(t, nnkTypeDef)
