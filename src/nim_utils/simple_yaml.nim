@@ -11,6 +11,7 @@ import
 import
     ./yaml_codegen
 
+# export the deriveYaml and deriveYamls macros
 export yaml_codegen
 
 type
@@ -196,7 +197,6 @@ proc ofYaml*(n: YNode, t: typedesc[string]): string =
     n.str()
 
 proc ofYaml*(n: YNode, t: typedesc[bool]): bool =
-    echo fmt"The node looks like '{n.str()}'"
     parseBool(n.str())
 
 proc `==`*(a: YNode, b: YNode): bool =

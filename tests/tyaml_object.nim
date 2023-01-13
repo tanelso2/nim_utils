@@ -20,7 +20,7 @@ check o.i == 99
 check o.s == "hello world"
 
 type
-  MyType = object
+  MyType = object of RootObj
     pulse: bool
     breathing: bool
 
@@ -75,5 +75,15 @@ deriveYamls:
   Vitals
 
 sample = """
-status: 
+status:
+  bpm: 90
+  pulse: true
+  breathing: true
+name: Leonard Snart
 """
+
+var v: Vitals = ofYamlStr(sample, Vitals)
+check v.status.bpm == 90
+check v.status.pulse == true
+check v.status.breathing == true
+check v.name == "Leonard Snart"
