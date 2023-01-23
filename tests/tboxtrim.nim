@@ -1,5 +1,6 @@
 import
   nim_utils/io_utils,
+  nim_utils/logline,
   unittest
 
 proc checkBoxTrim(a,b: string) =
@@ -45,4 +46,12 @@ checkBoxTrimNotEquals("""
   abc
 """, """
         abc1
+""")
+
+checkBoxTrimNotEquals("""
+  
+  
+  ab c
+""", """
+        abc
 """)

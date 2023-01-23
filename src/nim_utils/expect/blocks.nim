@@ -19,7 +19,8 @@ macro expectTest*(body: untyped) =
           ident("currContext"),
           ident("ExpectContext"),
           newCall(
-            ident("newContext")),)),
+            ident("newContext"),
+            ident("currentSourcePath")),)),
       nnkTryStmt.newTree(
         body,
         nnkFinally.newTree(
@@ -35,33 +36,38 @@ macro expectTest*(body: untyped) =
               )
             ))))))
 
-proc checkExpectation*(ctx: var ExpectContext, actual, expected: string) =
-  if (boxTrim actual) == (boxTrim expected):
-    ctx.recordSuccess()
+proc checkExpectation*(ctx: var ExpectContext, loc: InstantiationInfo, actual, expected: string) =
+  let trimmedActual = boxTrim actual
+  let trimmedExpected = boxTrim expected
+  if trimmedActual == trimmedExpected:
+    ctx.recordSuccess(loc)
   else:
-    ctx.recordFailure(expected, actual)
+    ctx.recordFailure(loc, trimmedExpected, trimmedActual)
   
 macro expect*(expectedOutput: string) =
-  newStmtList(
-    nnkLetSection.newTree(
-      nnkIdentDefs.newTree(
-        ident("actualOutput"),
-        newEmptyNode(),
-        newCall(
-          newDotExpr(
-            ident("currContext"),
-            ident("readOutput")
+  nnkBlockStmt.newTree(
+    newEmptyNode(),
+    newStmtList(
+      nnkLetSection.newTree(
+        nnkIdentDefs.newTree(
+          ident("actualOutput"),
+          newEmptyNode(),
+          newCall(
+            newDotExpr(
+              ident("currContext"),
+              ident("readOutput")
+            )
           )
         )
+      ),
+      newCall(
+        newDotExpr(ident("currContext"), ident("checkExpectation")),
+        newCall("instantiationInfo"),
+        nnkExprEqExpr.newTree(
+          ident("expected"), 
+          expectedOutput) ,
+        nnkExprEqExpr.newTree(
+          ident("actual"), 
+          ident("actualOutput"))
       )
-    ),
-    newCall(
-      newDotExpr(ident("currContext"), ident("checkExpectation")),
-      nnkExprEqExpr.newTree(
-        ident("expected"), 
-        expectedOutput) ,
-      nnkExprEqExpr.newTree(
-        ident("actual"), 
-        ident("actualOutput"))
-    )
-  )
+    ))

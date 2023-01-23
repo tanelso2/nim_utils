@@ -1,15 +1,20 @@
 import
   std/[
     options,
+    os,
     strformat,
     tempfiles
   ]
 
 type 
+  InstantiationInfo* = tuple
+    filename: string
+    line: int
+    column: int
   TestOutcome* = enum
     toSuccess, toFailure
   TestResult* = object of RootObj
-    fileLocation*: void
+    fileLocation*: InstantiationInfo
     case outcome*: TestOutcome
     of toSuccess:
       discard
@@ -30,7 +35,7 @@ proc getPrefix(ctx: var ExpectContext): string =
   let blockName = ctx.blockName.get(otherwise = "")
   let idx = $ctx.idx
   ctx.idx = ctx.idx + 1
-  fmt"expect-{ctx.currSourceFile}-{blockName}-{idx}"
+  fmt"expect-{ctx.currSourceFile.extractFilename}-{blockName}-{idx}"
 
 proc newTmpFile(ctx: var ExpectContext) =
   let prefix = ctx.getPrefix()
@@ -39,10 +44,11 @@ proc newTmpFile(ctx: var ExpectContext) =
   stdout = newFile
   ctx.currStdoutFilename = name
 
-proc newContext*(): ExpectContext =
+proc newContext*(source: string): ExpectContext =
   let outputFileDir = createTempDir("expect-testing", "")
   result = ExpectContext(
     idx: 0, 
+    currSourceFile: source,
     # TODO: currSourceFile
     # TODO: blockName
     actualStdout: stdout, 
@@ -59,20 +65,29 @@ proc readOutput*(ctx: var ExpectContext): string =
 proc restoreStdout*(ctx: var ExpectContext) =
   stdout = ctx.actualStdout
 
-proc recordFailure*(ctx: var ExpectContext, expected, actual: string) =
-  let tr = TestResult(outcome: toFailure, expected: expected, actual: actual)
+proc recordFailure*(ctx: var ExpectContext, loc: InstantiationInfo, expected, actual: string) =
+  let tr = TestResult(outcome: toFailure, fileLocation: loc, expected: expected, actual: actual)
   ctx.results.add(tr)
 
-proc recordSuccess*(ctx: var ExpectContext) =
-  let tr = TestResult(outcome: toSuccess)
+proc recordSuccess*(ctx: var ExpectContext, loc: InstantiationInfo) =
+  let tr = TestResult(outcome: toSuccess, fileLocation: loc)
   ctx.results.add(tr)
   
 proc reportResults*(ctx: var ExpectContext) = 
   let results = ctx.results
+  var failed = false
   for res in results:
     if res.outcome == toSuccess:
-      echo "success"
+      echo "* success"
     else:
-      echo "failure"
-      quit 1
+      echo "x failure"
+      echo "~~~~~~Expected~~~~~~"
+      echo res.expected
+      echo "~~~~~~~Actual~~~~~~~"
+      echo res.actual
+      echo "~~~~~~~~~~~~~~~~~~~~"
+      failed = true
+  if failed:
+    echo "Run had failures"
+    quit 1
   
