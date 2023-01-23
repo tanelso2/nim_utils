@@ -6,7 +6,7 @@ import
   strutils,
   streams,
   std/tempfiles,
-  nim_utils/logline
+  ./logline
 
 proc execOutput*(x: openArray[string]): string =
   let process = x[0]

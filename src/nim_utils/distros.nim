@@ -6,7 +6,7 @@ import
     strformat,
     strutils,
     tables,
-    nim_utils/shell_utils
+    ./shell_utils
 
 const osReleaseFile = "/etc/os-release"
 
