@@ -80,7 +80,7 @@ proc reportResults*(ctx: var ExpectContext) =
     if res.outcome == toSuccess:
       echo "* success"
     else:
-      echo "x failure"
+      echo "x failure at " & $res.fileLocation
       echo "~~~~~~Expected~~~~~~"
       echo res.expected
       echo "~~~~~~~Actual~~~~~~~"

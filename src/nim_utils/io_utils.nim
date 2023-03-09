@@ -55,17 +55,16 @@ proc boxTrim*(s: string): string =
           of Some(@currRight):
             if i > currRight:
               furthestRight = some(i)
-  let (first, last, left, right) = (
-      firstLine.get(),
-      lastLine.get(),
-      furthestLeft.get(),
-      furthestRight.get())
-  var resLines: seq[string] = @[]
-  for (lineNum, line) in lines.pairs:
-    if lineNum >= first and lineNum <= last:
-      var currLine: string = ""
-      for (i, c) in line.pairs:
-        if i >= left and i <= right:
-          currLine.add(c)
-      resLines.add(currLine)
-  result = resLines.join("\n")
+  case (firstLine, lastLine, furthestLeft, furthestRight)
+  of (Some(@first), Some(@last), Some(@left), Some(@right)):
+    var resLines: seq[string] = @[]
+    for (lineNum, line) in lines.pairs:
+      if lineNum >= first and lineNum <= last:
+        var currLine: string = ""
+        for (i, c) in line.pairs:
+          if i >= left and i <= right:
+            currLine.add(c)
+        resLines.add(currLine)
+    result = resLines.join("\n")
+  else:
+    return ""
