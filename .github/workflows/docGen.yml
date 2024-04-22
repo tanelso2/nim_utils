@@ -30,7 +30,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Nim
         # You may pin to the exact commit or the version.
         # uses: iffy/install-nim@7dd1812db4916d00b984d1c43339346a76e05487
@@ -44,11 +44,11 @@ jobs:
           nimble genDocs
           cp -r ./docs ./_site
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v5
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
   deploy:
-    environment: 
+    environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
@@ -56,4 +56,4 @@ jobs:
     steps:
     - name: Deploy to Github Pages
       id: deployment
-      uses: actions/deploy-pages@v1
+      uses: actions/deploy-pages@v4
