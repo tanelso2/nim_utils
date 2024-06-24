@@ -5,7 +5,8 @@ import
     files,
     logline,
     option_utils,
-    shell_utils
+    shell_utils,
+    table_utils
   ]
 
 export
@@ -14,4 +15,5 @@ export
     files,
     logline,
     option_utils,
-    shell_utils
+    shell_utils,
+    table_utils
