@@ -6,6 +6,7 @@ import
     strformat,
     strutils,
     tables,
+    ./logline,
     ./shell_utils
 
 const osReleaseFile = "/etc/os-release"
@@ -49,10 +50,10 @@ proc getPackageManager*(): Option[PackageManager] =
       return some(x)
 
   # tryReturn pmNix
-  case idLike():
-    of "debian":
+  let idL = idLike()
+  if "debian" in idL:
       tryReturn pmApt
-    of "arch":
+  if "arch" in idL:
       tryReturn pmYay
       tryReturn pmPacman
   none(PackageManager)
@@ -91,5 +92,6 @@ proc updatePackageList*() =
   discard execCmd pm.updateCmd()
 
 when isMainModule:
+  echo idLike()
   let pm = getPackageManager().get()
   echo pm.updateCmd()
